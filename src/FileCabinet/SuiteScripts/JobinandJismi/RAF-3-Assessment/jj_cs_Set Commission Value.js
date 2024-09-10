@@ -1,14 +1,14 @@
 /**
- * @NApiVersion 2.x
+ * @NApiVersion 2.1
  * @NScriptType ClientScript
  * @NModuleScope SameAccount
  */
-define(['N/record', 'N/search'],
+define(['N/record', 'N/search', 'N/url'],
 /**
  * @param{record} record
  * @param{search} search
  */
-function(record, search) {
+function(record, search, url) {
     
     /**
      * Function to be executed after page is initialized.
@@ -20,7 +20,7 @@ function(record, search) {
      * @since 2015.2
      */
     function pageInit(scriptContext) {
-
+        window.onbeforeunload = null;
     }
 
     /**
@@ -36,7 +36,24 @@ function(record, search) {
      * @since 2015.2
      */
     function fieldChanged(scriptContext) {
-
+        try{
+            log.debug('Opened...');
+            let emp = scriptContext.currentRecord.getValue({
+                fieldId: 'custpage_employee'
+            });
+            if (scriptContext.fieldId === 'custpage_employee') {
+                document.location = url.resolveScript({
+                    scriptId: 'customscript_jj_sl_employee_commission',
+                    deploymentId: 'customdeploy_jj_sl_employee_commission',
+                    params: {
+                        employee: emp || ''
+                    }
+                });
+            }
+        }
+        catch(e){
+            log.debug('Error@fieldChanged()', e.message + e.stack);
+        }
     }
 
     /**
@@ -49,9 +66,9 @@ function(record, search) {
      *
      * @since 2015.2
      */
-    function postSourcing(scriptContext) {
+    // function postSourcing(scriptContext) {
 
-    }
+    // }
 
     /**
      * Function to be executed after sublist is inserted, removed, or edited.
@@ -62,9 +79,9 @@ function(record, search) {
      *
      * @since 2015.2
      */
-    function sublistChanged(scriptContext) {
+    // function sublistChanged(scriptContext) {
 
-    }
+    // }
 
     /**
      * Function to be executed after line is selected.
@@ -75,9 +92,9 @@ function(record, search) {
      *
      * @since 2015.2
      */
-    function lineInit(scriptContext) {
+    // function lineInit(scriptContext) {
 
-    }
+    // }
 
     /**
      * Validation function to be executed when field is changed.
@@ -93,9 +110,9 @@ function(record, search) {
      *
      * @since 2015.2
      */
-    function validateField(scriptContext) {
+    // function validateField(scriptContext) {
 
-    }
+    // }
 
     /**
      * Validation function to be executed when sublist line is committed.
@@ -108,9 +125,9 @@ function(record, search) {
      *
      * @since 2015.2
      */
-    function validateLine(scriptContext) {
+    // function validateLine(scriptContext) {
 
-    }
+    // }
 
     /**
      * Validation function to be executed when sublist line is inserted.
@@ -123,9 +140,9 @@ function(record, search) {
      *
      * @since 2015.2
      */
-    function validateInsert(scriptContext) {
+    // function validateInsert(scriptContext) {
 
-    }
+    // }
 
     /**
      * Validation function to be executed when record is deleted.
@@ -138,9 +155,9 @@ function(record, search) {
      *
      * @since 2015.2
      */
-    function validateDelete(scriptContext) {
+    // function validateDelete(scriptContext) {
 
-    }
+    // }
 
     /**
      * Validation function to be executed when record is saved.
@@ -151,21 +168,21 @@ function(record, search) {
      *
      * @since 2015.2
      */
-    function saveRecord(scriptContext) {
+    // function saveRecord(scriptContext) {
 
-    }
+    // }
 
     return {
         pageInit: pageInit,
         fieldChanged: fieldChanged,
-        postSourcing: postSourcing,
-        sublistChanged: sublistChanged,
-        lineInit: lineInit,
-        validateField: validateField,
-        validateLine: validateLine,
-        validateInsert: validateInsert,
-        validateDelete: validateDelete,
-        saveRecord: saveRecord
+        // postSourcing: postSourcing,
+        // sublistChanged: sublistChanged,
+        // lineInit: lineInit,
+        // validateField: validateField,
+        // validateLine: validateLine,
+        // validateInsert: validateInsert,
+        // validateDelete: validateDelete,
+        // saveRecord: saveRecord
     };
     
 });

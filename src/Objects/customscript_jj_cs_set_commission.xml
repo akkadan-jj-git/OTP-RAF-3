@@ -1,0 +1,10 @@
+<clientscript scriptid="customscript_jj_cs_set_commission">
+  <description></description>
+  <isinactive>F</isinactive>
+  <name>JJ CS Set commission</name>
+  <notifyadmins>F</notifyadmins>
+  <notifyemails></notifyemails>
+  <notifyowner>T</notifyowner>
+  <notifyuser>F</notifyuser>
+  <scriptfile>[/SuiteScripts/JobinandJismi/RAF-3-Assessment/jj_cs_Set Commission Value.js]</scriptfile>
+</clientscript>
