@@ -73,9 +73,8 @@ define(['N/record', 'N/search', 'N/ui/serverWidget'],
                     if(empId){
                         filters.push('AND', ["salesrep","anyof", empId]);
                         log.debug('Customer Filter', filters);
-
                         let employeeSearch = search.create({
-                            type: search.Type.EMPLOYEE,
+                            type: search.Type.INVOICE,
                             filters: filters,
                             columns:
                             [ 'salesrep', 'amount'
@@ -91,16 +90,16 @@ define(['N/record', 'N/search', 'N/ui/serverWidget'],
                                 // })
                             ]
                         });
-                        let results = employeeSearch.run().getRange({ start: 0, end: 1000 });
+                        let results = employeeSearch.run().getRange({ start: 0, end: 1 });
                         results.forEach(function(result, index) {
                             sublist.setSublistValue({
                                 id: 'custpage_emp_name',
                                 line: index,
                                 value: result.getValue('salesrep')
                             });
-                            var salesAmount = result.getValue('amount');
+                            let salesAmount = result.getValue('amount');
                             log.debug('Amount', salesAmount);
-                            var commission = salesAmount * 0.02;
+                            let commission = salesAmount * 0.02;
                             
                             sublist.setSublistValue({
                                 id: 'custpage_sales_amount',
@@ -120,57 +119,47 @@ define(['N/record', 'N/search', 'N/ui/serverWidget'],
                     scriptContext.response.writePage(form);
                 }
                 else if(scriptContext.request.method === 'POST') {
-                    let lineCount = scriptContext.request.getLineCount({
-                        group: 'custpage_commission_sublist'
-                    });
+                    let rep = scriptContext.request.parameters.custpage_employee;
+                    log.debug('Rep after submit', rep);
+                    let amount = scriptContext.request.parameters.custpage_sales_amount;
+                    log.debug('amount after submit', amount);
+                    let commission = scriptContext.request.parameters.custpage_commission_amount;
+                    log.debug('commission after submit', commission);
                     
-                    for (let i = 0; i < lineCount; i++) {
-                        let empId = scriptContext.request.getSublistValue({
-                            group: 'custpage_commission_sublist',
-                            name: 'custpage_emp_id',
-                            line: i
-                        });
-                        
-                        let commissionAmount = parseFloat(scriptContext.request.getSublistValue({
-                            group: 'custpage_commission_sublist',
-                            name: 'custpage_commission_amount',
-                            line: i
-                        }));
-                        let existingRecord = search.create({
+                    let existingRecord = search.create({
+                        type: 'customrecord_jj_custrec_emp_commission',
+                        filters: [
+                            ['custrecord_jj_emp_name', 'is', rep]
+                        ]
+                    }).run().getRange({ start: 0, end: 1 });
+
+                    if(existingRecord.length > 0) {
+                        // update existing record
+                        let recordId = existingRecord[0].id;
+                        let commissionRecord = record.load({
                             type: 'customrecord_jj_custrec_emp_commission',
-                            filters: [
-                                ['custrecord_jj_emp_name', 'is', empId]
-                            ]
-                        }).run().getRange({ start: 0, end: 1 });
-                        
-                        if (existingRecord.length > 0) {
-                            // update existing record
-                            let recordId = existingRecord[0].id;
-                            let commissionRecord = record.load({
-                                type: 'customrecord_jj_custrec_emp_commission',
-                                id: recordId
-                            });
-                            commissionRecord.setValue({
-                                fieldId: 'custrecord_jj_commission',
-                                value: commissionAmount
-                            });
-                            commissionRecord.save();
-                        } else{
-                            //create new record
-                            let commissionRecord = record.create({
-                                type: 'customrecord_jj_custrec_emp_commission'
-                            });
-                            commissionRecord.setValue({
-                                fieldId: 'custrecord_jj_emp_name',
-                                value: empId
-                            });
-                            commissionRecord.setValue({
-                                fieldId: 'custrecord_jj_commission',
-                                value: commissionAmount
-                            });
-                            let commissionRecordId = commissionRecord.save();
-                            log.debug('Commission Record', commissionRecordId);
-                        }
+                            id: recordId
+                        });
+                        commissionRecord.setValue({
+                            fieldId: 'custrecord_jj_commission',
+                            value: commissionAmount
+                        });
+                        commissionRecord.save();
+                    }else{
+                        //create new record
+                        let commissionRecord = record.create({
+                            type: 'customrecord_jj_custrec_emp_commission'
+                        });
+                        commissionRecord.setValue({
+                            fieldId: 'custrecord_jj_emp_name',
+                            value: rep
+                        });
+                        commissionRecord.setValue({
+                            fieldId: 'custrecord_jj_commission',
+                            value: commissionAmount
+                        });
+                        let commissionRecordId = commissionRecord.save();
+                        log.debug('Commission Record', commissionRecordId);
                     }
                     context.response.write('Commission data has been processed successfully.');
                 }
