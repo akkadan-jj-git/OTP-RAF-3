@@ -38,7 +38,10 @@ function(record, search, url) {
     function fieldChanged(scriptContext) {
         try{
             log.debug('Opened...');
-            let emp = scriptContext.currentRecord.getValue({
+            let empid = scriptContext.currentRecord.getValue({
+                fieldId: 'custpage_employee'
+            });
+            let empname = scriptContext.currentRecord.getText({
                 fieldId: 'custpage_employee'
             });
             if (scriptContext.fieldId === 'custpage_employee') {
@@ -46,7 +49,8 @@ function(record, search, url) {
                     scriptId: 'customscript_jj_sl_employee_commission',
                     deploymentId: 'customdeploy_jj_sl_employee_commission',
                     params: {
-                        employee: emp || ''
+                        employeeId: empid || '',
+                        employeeName: empname || ''
                     }
                 });
             }

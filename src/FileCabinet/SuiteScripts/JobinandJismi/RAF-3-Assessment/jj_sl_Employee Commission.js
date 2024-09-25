@@ -9,6 +9,22 @@ define(['N/record', 'N/search', 'N/ui/serverWidget'],
  * @param{serverWidget} serverWidget
  */
     (record, search, serverWidget) => {
+        function employeeSearch(){
+            let employeeSearch = search.create({
+                type: search.Type.EMPLOYEE,
+                filters: [
+                    ['salesrep', 'is', 'T'],
+                    'AND',
+                    ['isinactive', 'is', 'F']
+                ],
+                columns: ['internalid', 'entityid']
+            });
+            let results = employeeSearch.run().getRange({
+                start: 0,
+                end: 1000
+            });
+            return results;
+        }
         /**
          * Defines the Suitelet script trigger point.
          * @param {Object} scriptContext
@@ -32,37 +48,36 @@ define(['N/record', 'N/search', 'N/ui/serverWidget'],
                         id: 'custpage_employee',
                         label: 'Employee Name',
                         type: serverWidget.FieldType.SELECT,
-                        source: 'employee',
                         container: 'custpage_field_group'
                     });
-                    
-                    let sublist = form.addSublist({
-                        id: 'custpage_commission_sublist',
-                        type: serverWidget.SublistType.LIST,
-                        label: 'Employee Commissions'
+                    salesRepField.addSelectOption({
+                        value: '',
+                        text: 'Choose one Employee'
                     });
-                    
-                    sublist.addField({
-                        id: 'custpage_emp_name',
-                        type: serverWidget.FieldType.TEXT,
-                        label: 'Employee Name'
+                    let employeeList = employeeSearch();
+                    employeeList.forEach(function(result){
+                        let employeeDetails = {
+                            name: result.getValue({name: 'entityid'}),
+                            internalId: result.getValue({name: 'internalid'})
+                        };
+                        salesRepField.addSelectOption({
+                            value: employeeDetails.internalId,
+                            text: employeeDetails.name
+                        });
                     });
-                    
-                    sublist.addField({
-                        id: 'custpage_sales_amount',
+                    let commissionField = form.addField({
+                        id: 'custpage_commission',
+                        label: 'Total Amount',
                         type: serverWidget.FieldType.CURRENCY,
-                        label: 'Total Sales (2023)'
+                        container: 'custpage_field_group'
                     });
-                    
-                    sublist.addField({
-                        id: 'custpage_commission_amount',
-                        type: serverWidget.FieldType.CURRENCY,
-                        label: 'Calculated Commission'
+                    commissionField.setHelpText({
+                        help: "This field shows the commission amount set automatically for the Sales Rep you've chosen. It is calculated considering the employee's 2023 sales. However, you can still make changes to the amount."
                     })
 
-                    let empId = scriptContext.request.parameters.employee || '';
+                    let empId = scriptContext.request.parameters.employeeId || '';
+                    let empname = scriptContext.request.parameters.employeeName || '';
                     salesRepField.defaultValue = empId;
-                    log.debug('Sales Rep', empId);
                     let filters = [
                         ["type","anyof","CustInvc"], 
                         "AND", 
@@ -76,92 +91,79 @@ define(['N/record', 'N/search', 'N/ui/serverWidget'],
                         let employeeSearch = search.create({
                             type: search.Type.INVOICE,
                             filters: filters,
-                            columns:
-                            [ 'salesrep', 'amount'
-                                // search.createColumn({
-                                //     name: "salesrep",
-                                //     summary: "GROUP",
-                                //     label: "Sales Rep"
-                                // }),
-                                // search.createColumn({
-                                //     name: "amount",
-                                //     summary: "SUM",
-                                //     label: "Amount"
-                                // })
-                            ]
+                            columns:['salesrep', 'amount']
                         });
                         let results = employeeSearch.run().getRange({ start: 0, end: 1 });
-                        results.forEach(function(result, index) {
-                            sublist.setSublistValue({
-                                id: 'custpage_emp_name',
-                                line: index,
-                                value: result.getValue('salesrep')
-                            });
-                            let salesAmount = result.getValue('amount');
-                            log.debug('Amount', salesAmount);
-                            let commission = salesAmount * 0.02;
-                            
-                            sublist.setSublistValue({
-                                id: 'custpage_sales_amount',
-                                line: index,
-                                value: salesAmount
-                            });
-                            sublist.setSublistValue({
-                                id: 'custpage_commission_amount',
-                                line: index,
-                                value: commission
-                            });
-                        });
+                        let totalCommission;
+                        if (results.length > 0) {
+                            let result = results[0];
+                            totalCommission = parseFloat(result.getValue({
+                                name: 'amount'
+                            })) || 0;
+                        }
+                        if(totalCommission != null){
+                            totalCommission = totalCommission + (totalCommission * 0.02);
+                            commissionField.defaultValue = totalCommission.toFixed(2);
+                        }else{
+                            totalCommission = 0;
+                            commissionField.defaultValue = totalCommission;
+                        }
+                        log.debug('Total Amount', totalCommission);
                     }
+
                     form.addSubmitButton({
                         label: 'Submit Commission Data'
                     });
                     scriptContext.response.writePage(form);
                 }
                 else if(scriptContext.request.method === 'POST') {
+                    let commissionRecordId, out;
                     let rep = scriptContext.request.parameters.custpage_employee;
-                    log.debug('Rep after submit', rep);
-                    let amount = scriptContext.request.parameters.custpage_sales_amount;
-                    log.debug('amount after submit', amount);
-                    let commission = scriptContext.request.parameters.custpage_commission_amount;
-                    log.debug('commission after submit', commission);
-                    
-                    let existingRecord = search.create({
-                        type: 'customrecord_jj_custrec_emp_commission',
-                        filters: [
-                            ['custrecord_jj_emp_name', 'is', rep]
-                        ]
-                    }).run().getRange({ start: 0, end: 1 });
-
-                    if(existingRecord.length > 0) {
-                        // update existing record
-                        let recordId = existingRecord[0].id;
-                        let commissionRecord = record.load({
-                            type: 'customrecord_jj_custrec_emp_commission',
-                            id: recordId
-                        });
-                        commissionRecord.setValue({
-                            fieldId: 'custrecord_jj_commission',
-                            value: commissionAmount
-                        });
-                        commissionRecord.save();
-                    }else{
-                        //create new record
-                        let commissionRecord = record.create({
-                            type: 'customrecord_jj_custrec_emp_commission'
-                        });
-                        commissionRecord.setValue({
-                            fieldId: 'custrecord_jj_emp_name',
-                            value: rep
-                        });
-                        commissionRecord.setValue({
-                            fieldId: 'custrecord_jj_commission',
-                            value: commissionAmount
-                        });
-                        let commissionRecordId = commissionRecord.save();
-                        log.debug('Commission Record', commissionRecordId);
+                    let commissionAmount = scriptContext.request.parameters.custpage_commission;
+                    log.debug('Commission Amount', commissionAmount);
+                    if(commissionAmount == 0){
+                        out = 'The employee has not made any transaction during 2023. So, no record has been created.';
                     }
-                    context.response.write('Commission data has been processed successfully.');
+                    else{
+                        let existingRecord = search.create({
+                            type: 'customrecord_jj_custrec_emp_commission',
+                            filters: [
+                                ['custrecord_jj_emp_name', 'is', rep]
+                            ]
+                        }).run().getRange({ start: 0, end: 1 });
+                        if(existingRecord.length > 0) {
+                            // update existing record
+                            let recordId = existingRecord[0].id;
+                            let commissionRecord = record.load({
+                                type: 'customrecord_jj_custrec_emp_commission',
+                                id: recordId
+                            });
+                            commissionRecord.setValue({
+                                fieldId: 'custrecord_jj_commission',
+                                value: commissionAmount
+                            });
+                            commissionRecordId = commissionRecord.save();
+                            log.debug('Updated Commission Record', commissionRecordId);
+                            out = 'Commission data has been updated in the existing Employee Commission Record. \n\nDetails\nInternal Id:\t' + commissionRecordId + '\nEmployee Id:\t' + rep;
+                        }else{
+                            //create new record
+                            let commissionRecord = record.create({
+                                type: 'customrecord_jj_custrec_emp_commission'
+                            });
+                            commissionRecord.setValue({
+                                fieldId: 'custrecord_jj_emp_name',
+                                value: rep
+                            });
+                            commissionRecord.setValue({
+                                fieldId: 'custrecord_jj_commission',
+                                value: commissionAmount
+                            });
+                            commissionRecordId = commissionRecord.save();
+                            log.debug('New Commission Record', commissionRecordId);
+                            out = 'Commission data has been stored to a new Employee Commission Record. \n\nDetails\nInternal Id:\t' + commissionRecordId + '\nEmployee Id:\t' + rep;
+                        }
+                    }
+                    scriptContext.response.write(out);
                 }
             }
             catch(e){
